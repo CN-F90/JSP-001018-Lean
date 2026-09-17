@@ -75,13 +75,18 @@ jobs:
 
       - name: Confirm artifacts actually compiled (olean present)
         run: |
+          # `JSP001018` is the root module of the library and `JSP001018.Axioms`
+          # is a module inside it, so their oleans live under .lake/build/lib/lean/
+          # as `JSP001018.olean` and `JSP001018/Axioms.olean` respectively.
           ok=1
-          for m in JSP001018 JSP001018.Axioms; do
-            f=$(find .lake/build -name "$m.olean" | head -1)
+          for m in "JSP001018.olean" "JSP001018/Axioms.olean"; do
+            f=$(find .lake/build -path "*/lib/lean/$m" | head -1)
             if [ -n "$f" ] && [ -s "$f" ]; then
-              echo "OK: $f built."
+              echo "OK: $f built ($(stat -c%s "$f") bytes)."
             else
-              echo "ERROR: $m.olean NOT found."
+              echo "ERROR: $m NOT found under .lake/build/lib/lean/."
+              echo "--- oleans actually produced ---"
+              find .lake/build -name '*.olean' | sort || true
               ok=0
             fi
           done
