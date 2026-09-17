@@ -57,23 +57,21 @@ jobs:
       - name: Axiom audit (#print axioms)
         run: |
           echo "=== axiom audit: JSP001018.erdos_1213 and supporting lemmas ==="
-          lake env lean JSP001018/Axioms.lean
+          OUT=$(lake env lean JSP001018/Axioms.lean 2>&1)
+          echo "$OUT"
+          if echo "$OUT" | grep -q 'sorryAx'; then
+            echo "ERROR: 'sorryAx' present — a 'sorry' remains in the proof."
+            exit 1
+          fi
+          EXPECTED="'JSP001018.erdos_1213' depends on axioms: [propext, Classical.choice, Quot.sound]"
+          if ! echo "$OUT" | grep -qF "$EXPECTED"; then
+            echo "ERROR: unexpected axiom set for JSP001018.erdos_1213."
+            exit 1
+          fi
+          echo "OK: main theorem depends only on [propext, Classical.choice, Quot.sound]."
 
-      - name: Reject forbidden placeholders (sorry / admit / new axiom)
-        run: |
-          echo "=== scanning sources for sorry / admit / axiom declarations ==="
-          bad=0
-          if grep -rnE '(^|[^A-Za-z_])sorry([^A-Za-z_]|$)' --include='*.lean' JSP001018.lean JSP001018/; then
-            echo "ERROR: 'sorry' found"; bad=1
-          fi
-          if grep -rnE '(^|[^A-Za-z_])admit([^A-Za-z_]|$)' --include='*.lean' JSP001018.lean JSP001018/; then
-            echo "ERROR: 'admit' found"; bad=1
-          fi
-          if grep -rnE '^\s*(axiom|unsafe)\b' --include='*.lean' JSP001018.lean JSP001018/; then
-            echo "ERROR: 'axiom'/'unsafe' declaration found"; bad=1
-          fi
-          [ "$bad" = "0" ] && echo "OK: no sorry / admit / axiom / unsafe."
-          exit $bad
+      - name: Reject forbidden placeholders (sorry / admit / new axiom / unsafe)
+        run: python3 scripts/check_no_placeholders.py
 
       - name: Confirm artifacts actually compiled (olean present)
         run: |
