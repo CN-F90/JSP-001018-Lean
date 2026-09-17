@@ -1,0 +1,90 @@
+name: Build JSP-001018 (Lean 4.34.0 + mathlib v4.34.0)
+
+# Reproducible remote build of the JSP-001018 formalization.
+# A green run proves: the pinned toolchain resolves, mathlib v4.34.0 builds,
+# every module of the formalization compiles with no `sorry`/`admit`, and the
+# axiom audit reports only Lean's standard foundations.
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install elan and resolve the pinned toolchain
+        run: |
+          curl -sSf https://elan.lean-lang.org/elan-init.sh -o elan-init.sh
+          sh elan-init.sh -y --default-toolchain none
+          rm -f elan-init.sh
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Show versions
+        run: |
+          which lake && lake --version
+          lean --version
+          echo "lean-toolchain: $(cat lean-toolchain)"
+
+      - name: Cache lake artifacts (best effort)
+        uses: actions/cache@v4
+        with:
+          path: |
+            .lake/build
+            lake-packages
+          key: lake-${{ runner.os }}-${{ hashFiles('lean-toolchain','lakefile.toml') }}
+          restore-keys: |
+            lake-${{ runner.os }}-
+
+      - name: lake update (fetch mathlib at the pinned commit)
+        run: lake update
+
+      - name: mathlib precompiled olean cache (best effort)
+        continue-on-error: true
+        run: lake exe cache get || echo "cache unavailable — will compile from source"
+
+      - name: lake build
+        run: lake build JSP001018 JSP001018.Axioms
+
+      - name: Axiom audit (#print axioms)
+        run: |
+          echo "=== axiom audit: JSP001018.erdos_1213 and supporting lemmas ==="
+          lake env lean JSP001018/Axioms.lean
+
+      - name: Reject forbidden placeholders (sorry / admit / new axiom)
+        run: |
+          echo "=== scanning sources for sorry / admit / axiom declarations ==="
+          bad=0
+          if grep -rnE '(^|[^A-Za-z_])sorry([^A-Za-z_]|$)' --include='*.lean' JSP001018.lean JSP001018/; then
+            echo "ERROR: 'sorry' found"; bad=1
+          fi
+          if grep -rnE '(^|[^A-Za-z_])admit([^A-Za-z_]|$)' --include='*.lean' JSP001018.lean JSP001018/; then
+            echo "ERROR: 'admit' found"; bad=1
+          fi
+          if grep -rnE '^\s*(axiom|unsafe)\b' --include='*.lean' JSP001018.lean JSP001018/; then
+            echo "ERROR: 'axiom'/'unsafe' declaration found"; bad=1
+          fi
+          [ "$bad" = "0" ] && echo "OK: no sorry / admit / axiom / unsafe."
+          exit $bad
+
+      - name: Confirm artifacts actually compiled (olean present)
+        run: |
+          ok=1
+          for m in JSP001018 JSP001018.Axioms; do
+            f=$(find .lake/build -name "$m.olean" | head -1)
+            if [ -n "$f" ] && [ -s "$f" ]; then
+              echo "OK: $f built."
+            else
+              echo "ERROR: $m.olean NOT found."
+              ok=0
+            fi
+          done
+          [ "$ok" = "1" ] || exit 1

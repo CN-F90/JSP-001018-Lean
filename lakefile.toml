@@ -1,0 +1,18 @@
+# JSP-001018 — Erdős problem #1213
+# Complete Lean 4 formalization of the affirmative answer.
+#
+# Toolchain: Lean 4.34.0 + mathlib v4.34.0.
+# mathlib is pinned to the exact v4.34.0 release commit so that the build is
+# reproducible and the referenced proof can never drift.
+
+name = "JSP001018"
+version = "1.0.0"
+defaultTargets = ["JSP001018", "JSP001018.Axioms"]
+
+[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+rev = "5ed2965256430c3649e86755f9576b54eca72435"
+
+[[lean_lib]]
+name = "JSP001018"
