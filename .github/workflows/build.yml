@@ -1,4 +1,4 @@
-name: Build JSP-001018 (Lean 4.34.0 + mathlib v4.34.0)
+name: Build JSP-001018 + Audit1018 (Lean 4.34.0 + mathlib v4.34.0)
 
 # Reproducible remote build of the JSP-001018 formalization.
 # A green run proves: the pinned toolchain resolves, mathlib v4.34.0 builds,
@@ -52,7 +52,7 @@ jobs:
         run: lake exe cache get || echo "cache unavailable — will compile from source"
 
       - name: lake build
-        run: lake build JSP001018 JSP001018.Axioms
+        run: lake build JSP001018 JSP001018.Axioms Audit1018
 
       - name: Axiom audit (#print axioms)
         run: |
@@ -70,6 +70,26 @@ jobs:
           fi
           echo "OK: main theorem depends only on [propext, Classical.choice, Quot.sound]."
 
+      - name: Axiom audit - independent bridge (Audit1018.lean)
+        run: |
+          OUT=$(lake env lean Audit1018.lean 2>&1)
+          echo "$OUT"
+          if echo "$OUT" | grep -q 'sorryAx'; then
+            echo "ERROR: 'sorryAx' present in Audit1018.lean."
+            exit 1
+          fi
+          EXPECTED="'Audit1018.submitted_yields_intended' depends on axioms: [propext, Classical.choice, Quot.sound]"
+          if ! echo "$OUT" | grep -qF "$EXPECTED"; then
+            echo "ERROR: unexpected axiom set for Audit1018.submitted_yields_intended."
+            exit 1
+          fi
+          EXPECTED="'Audit1018.submitted_theorem_yields_intended' depends on axioms: [propext, Classical.choice, Quot.sound]"
+          if ! echo "$OUT" | grep -qF "$EXPECTED"; then
+            echo "ERROR: unexpected axiom set for Audit1018.submitted_theorem_yields_intended."
+            exit 1
+          fi
+          echo "OK: axiom audit passed for the independent bridge."
+
       - name: Reject forbidden placeholders (sorry / admit / new axiom / unsafe)
         run: python3 scripts/check_no_placeholders.py
 
@@ -79,7 +99,7 @@ jobs:
           # is a module inside it, so their oleans live under .lake/build/lib/lean/
           # as `JSP001018.olean` and `JSP001018/Axioms.olean` respectively.
           ok=1
-          for m in "JSP001018.olean" "JSP001018/Axioms.olean"; do
+          for m in "JSP001018.olean" "JSP001018/Axioms.olean" "Audit1018.olean"; do
             f=$(find .lake/build -path "*/lib/lean/$m" | head -1)
             if [ -n "$f" ] && [ -s "$f" ]; then
               echo "OK: $f built ($(stat -c%s "$f") bytes)."

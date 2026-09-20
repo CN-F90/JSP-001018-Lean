@@ -137,3 +137,41 @@ In summary, the formalized statement is the **full original problem**:
   constructive version is not provided.
 * The formalization is of the **affirmative answer to the problem**, not of
   Hegyvári's particular paper or of his specific bound.
+
+---
+
+## 8. Independent audit bridge (`Audit1018.lean`)
+
+The official `lean-verify` self-check asks for "a minimal target statement and
+`example : IntendedStatement := ...` in a separate audit file, connecting it to
+the submitted theorem". `Audit1018.lean` supplies this. It does two things:
+
+1. **Independent restatement.** The conclusion is re-written the way the problem
+   text itself phrases it, and differs structurally from `JSP001018.lean` in
+   both ingredients:
+   - an interval is an explicit *index set* `Finset.Ico p (p + n)` and the block
+     sum is the ordinary `Finset` sum `∑ i ∈ I, u i`, instead of the custom
+     recursive `isum u p n`;
+   - "distinct intervals" is set inequality `I ≠ J` between the two index sets,
+     instead of the endpoint disjunction `(p ≠ p' ∨ n ≠ n')`.
+2. **Bridge.** Neither link is a rename:
+   - `isum_eq_sum_range` proves the submitted recursive block sum equals the
+     standard `Finset.range` sum (induction on the block length);
+   - `Ico_inj` proves an index set `Finset.Ico p (p + n)` determines the pair
+     `(p, n)` (least element and cardinality), so set inequality is exactly the
+     submitted endpoint disjunction;
+   - `submitted_theorem_has_submitted_type` checks the published proof term
+     `JSP001018.erdos_1213` against the quoted `SubmittedStatement`, and
+     `submitted_theorem_yields_intended` transports it to `IntendedStatement`.
+
+Axioms for every bridge theorem: `[propext, Classical.choice, Quot.sound]`.
+No `sorry`, no `admit`, no custom axiom, no `native_decide`.
+No proof source is modified; the pinned commit `d21ae5ec...` remains the
+verification target and an ancestor of HEAD.
+
+Reproduce with:
+
+```bash
+lake build JSP001018 JSP001018.Axioms Audit1018
+lake env lean Audit1018.lean
+```

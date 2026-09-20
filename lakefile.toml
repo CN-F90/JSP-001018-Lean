@@ -7,7 +7,7 @@
 
 name = "JSP001018"
 version = "1.0.0"
-defaultTargets = ["JSP001018", "JSP001018.Axioms"]
+defaultTargets = ["JSP001018", "JSP001018.Axioms", "Audit1018"]
 
 [[require]]
 name = "mathlib"
@@ -16,3 +16,6 @@ rev = "5ed2965256430c3649e86755f9576b54eca72435"
 
 [[lean_lib]]
 name = "JSP001018"
+
+[[lean_lib]]
+name = "Audit1018"
